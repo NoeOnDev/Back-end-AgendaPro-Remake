@@ -1,5 +1,4 @@
 import { useState } from "react";
-import { useNavigate } from "react-router-dom";
 import {
   Box,
   Paper,
@@ -9,26 +8,26 @@ import {
   Container,
   InputAdornment,
   IconButton,
-  Link,
 } from "@mui/material";
 import {
-  Person as PersonIcon,
   Lock as LockIcon,
   Visibility as VisibilityIcon,
   VisibilityOff as VisibilityOffIcon,
 } from "@mui/icons-material";
 
-export function LoginPage() {
-  const navigate = useNavigate();
-  const [formData, setFormData] = useState({
-    username: "",
+export function ResetPasswordPage() {
+  const [passwords, setPasswords] = useState({
     password: "",
+    confirmPassword: "",
   });
-  const [showPassword, setShowPassword] = useState(false);
+  const [showPassword, setShowPassword] = useState({
+    password: false,
+    confirmPassword: false,
+  });
 
   const handleChange = (event) => {
     const { name, value } = event.target;
-    setFormData((prev) => ({
+    setPasswords((prev) => ({
       ...prev,
       [name]: value,
     }));
@@ -36,11 +35,14 @@ export function LoginPage() {
 
   const handleSubmit = (event) => {
     event.preventDefault();
-    console.log("Datos del formulario:", formData);
+    console.log("Nueva contraseña:", passwords);
   };
 
-  const handleForgotPassword = () => {
-    navigate("/forgot-password");
+  const togglePasswordVisibility = (field) => {
+    setShowPassword((prev) => ({
+      ...prev,
+      [field]: !prev[field],
+    }));
   };
 
   return (
@@ -64,7 +66,7 @@ export function LoginPage() {
           }}
         >
           <Typography component="h1" variant="h5" sx={{ mb: 3 }}>
-            Iniciar Sesión
+            Crear Nueva Contraseña
           </Typography>
 
           <Box component="form" onSubmit={handleSubmit} sx={{ width: "100%" }}>
@@ -72,32 +74,10 @@ export function LoginPage() {
               margin="normal"
               required
               fullWidth
-              id="username"
-              label="Correo electrónico o usuario"
-              name="username"
-              autoComplete="email"
-              autoFocus
-              value={formData.username}
-              onChange={handleChange}
-              InputProps={{
-                startAdornment: (
-                  <InputAdornment position="start">
-                    <PersonIcon />
-                  </InputAdornment>
-                ),
-              }}
-            />
-
-            <TextField
-              margin="normal"
-              required
-              fullWidth
               name="password"
-              label="Contraseña"
-              type={showPassword ? "text" : "password"}
-              id="password"
-              autoComplete="current-password"
-              value={formData.password}
+              label="Nueva contraseña"
+              type={showPassword.password ? "text" : "password"}
+              value={passwords.password}
               onChange={handleChange}
               InputProps={{
                 startAdornment: (
@@ -108,10 +88,44 @@ export function LoginPage() {
                 endAdornment: (
                   <InputAdornment position="end">
                     <IconButton
-                      onClick={() => setShowPassword(!showPassword)}
+                      onClick={() => togglePasswordVisibility("password")}
                       edge="end"
                     >
-                      {showPassword ? (
+                      {showPassword.password ? (
+                        <VisibilityOffIcon />
+                      ) : (
+                        <VisibilityIcon />
+                      )}
+                    </IconButton>
+                  </InputAdornment>
+                ),
+              }}
+            />
+
+            <TextField
+              margin="normal"
+              required
+              fullWidth
+              name="confirmPassword"
+              label="Confirmar contraseña"
+              type={showPassword.confirmPassword ? "text" : "password"}
+              value={passwords.confirmPassword}
+              onChange={handleChange}
+              InputProps={{
+                startAdornment: (
+                  <InputAdornment position="start">
+                    <LockIcon />
+                  </InputAdornment>
+                ),
+                endAdornment: (
+                  <InputAdornment position="end">
+                    <IconButton
+                      onClick={() =>
+                        togglePasswordVisibility("confirmPassword")
+                      }
+                      edge="end"
+                    >
+                      {showPassword.confirmPassword ? (
                         <VisibilityOffIcon />
                       ) : (
                         <VisibilityIcon />
@@ -128,19 +142,8 @@ export function LoginPage() {
               variant="contained"
               sx={{ mt: 3, mb: 2 }}
             >
-              Iniciar Sesión
+              Cambiar Contraseña
             </Button>
-
-            <Box sx={{ width: "100%", textAlign: "center" }}>
-              <Link
-                component="button"
-                variant="body2"
-                onClick={handleForgotPassword}
-                sx={{ mt: 1 }}
-              >
-                ¿Olvidaste tu contraseña?
-              </Link>
-            </Box>
           </Box>
         </Paper>
       </Box>

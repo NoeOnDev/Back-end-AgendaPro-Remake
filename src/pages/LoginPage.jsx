@@ -1,14 +1,12 @@
-import { useState } from "react";
-import { useNavigate } from "react-router-dom";
+import { SignInPage } from "@toolpad/core/SignInPage";
 import {
-  Box,
-  Paper,
   TextField,
-  Button,
-  Typography,
-  Container,
+  FormControl,
+  OutlinedInput,
+  InputLabel,
   InputAdornment,
   IconButton,
+  Button,
   Link,
 } from "@mui/material";
 import {
@@ -17,133 +15,134 @@ import {
   Visibility as VisibilityIcon,
   VisibilityOff as VisibilityOffIcon,
 } from "@mui/icons-material";
+import { useState } from "react";
+import { useNavigate } from "react-router-dom";
+import { AuthService } from "../services/api/auth.service";
+
+const providers = [{ id: "credentials", name: "Email y Contraseña" }];
+
+function CustomEmailField() {
+  return (
+    <TextField
+      margin="normal"
+      required
+      fullWidth
+      id="username"
+      label="Correo electrónico o usuario"
+      name="username"
+      autoComplete="email"
+      autoFocus
+      InputProps={{
+        startAdornment: (
+          <InputAdornment position="start">
+            <PersonIcon />
+          </InputAdornment>
+        ),
+      }}
+    />
+  );
+}
+
+function CustomPasswordField() {
+  const [showPassword, setShowPassword] = useState(false);
+
+  return (
+    <FormControl fullWidth margin="normal">
+      <InputLabel>Contraseña</InputLabel>
+      <OutlinedInput
+        required
+        name="password"
+        label="Contraseña"
+        type={showPassword ? "text" : "password"}
+        autoComplete="current-password"
+        startAdornment={
+          <InputAdornment position="start">
+            <LockIcon />
+          </InputAdornment>
+        }
+        endAdornment={
+          <InputAdornment position="end">
+            <IconButton
+              onClick={() => setShowPassword(!showPassword)}
+              edge="end"
+            >
+              {showPassword ? <VisibilityOffIcon /> : <VisibilityIcon />}
+            </IconButton>
+          </InputAdornment>
+        }
+      />
+    </FormControl>
+  );
+}
+
+function CustomButton() {
+  return (
+    <Button type="submit" fullWidth variant="contained" sx={{ mt: 3, mb: 2 }}>
+      Iniciar Sesión
+    </Button>
+  );
+}
+
+function ForgotPasswordLink() {
+  const navigate = useNavigate();
+
+  return (
+    <Link
+      component="button"
+      variant="body2"
+      onClick={() => navigate("/forgot-password")}
+      sx={{ mt: 1 }}
+    >
+      ¿Olvidaste tu contraseña?
+    </Link>
+  );
+}
+
+function Title() {
+  return <h2>Iniciar Sesión</h2>;
+}
+
+function EmptySubtitle() {
+  return null;
+}
+
+function EmptyRememberMe() {
+  return null;
+}
 
 export function LoginPage() {
   const navigate = useNavigate();
-  const [formData, setFormData] = useState({
-    username: "",
-    password: "",
-  });
-  const [showPassword, setShowPassword] = useState(false);
+  const [error, setError] = useState(null);
 
-  const handleChange = (event) => {
-    const { name, value } = event.target;
-    setFormData((prev) => ({
-      ...prev,
-      [name]: value,
-    }));
-  };
+  const handleSignIn = async (provider, formData) => {
+    try {
+      const username = formData.get("username");
+      const password = formData.get("password");
 
-  const handleSubmit = (event) => {
-    event.preventDefault();
-    console.log("Datos del formulario:", formData);
-  };
+      const response = await AuthService.login(username, password);
 
-  const handleForgotPassword = () => {
-    navigate("/forgot-password");
+      console.log("Usuario autenticado:", response.user);
+      navigate("/dashboard");
+    } catch (err) {
+      setError(err.message);
+      console.error("Error de autenticación:", err);
+    }
   };
 
   return (
-    <Container component="main" maxWidth="xs">
-      <Box
-        sx={{
-          marginTop: 8,
-          display: "flex",
-          flexDirection: "column",
-          alignItems: "center",
-        }}
-      >
-        <Paper
-          elevation={3}
-          sx={{
-            padding: 4,
-            display: "flex",
-            flexDirection: "column",
-            alignItems: "center",
-            width: "100%",
-          }}
-        >
-          <Typography component="h1" variant="h5" sx={{ mb: 3 }}>
-            Iniciar Sesión
-          </Typography>
-
-          <Box component="form" onSubmit={handleSubmit} sx={{ width: "100%" }}>
-            <TextField
-              margin="normal"
-              required
-              fullWidth
-              id="username"
-              label="Correo electrónico o usuario"
-              name="username"
-              autoComplete="email"
-              autoFocus
-              value={formData.username}
-              onChange={handleChange}
-              InputProps={{
-                startAdornment: (
-                  <InputAdornment position="start">
-                    <PersonIcon />
-                  </InputAdornment>
-                ),
-              }}
-            />
-
-            <TextField
-              margin="normal"
-              required
-              fullWidth
-              name="password"
-              label="Contraseña"
-              type={showPassword ? "text" : "password"}
-              id="password"
-              autoComplete="current-password"
-              value={formData.password}
-              onChange={handleChange}
-              InputProps={{
-                startAdornment: (
-                  <InputAdornment position="start">
-                    <LockIcon />
-                  </InputAdornment>
-                ),
-                endAdornment: (
-                  <InputAdornment position="end">
-                    <IconButton
-                      onClick={() => setShowPassword(!showPassword)}
-                      edge="end"
-                    >
-                      {showPassword ? (
-                        <VisibilityOffIcon />
-                      ) : (
-                        <VisibilityIcon />
-                      )}
-                    </IconButton>
-                  </InputAdornment>
-                ),
-              }}
-            />
-
-            <Button
-              type="submit"
-              fullWidth
-              variant="contained"
-              sx={{ mt: 3, mb: 2 }}
-            >
-              Iniciar Sesión
-            </Button>
-
-            <Box sx={{ width: "100%", textAlign: "center" }}>
-              <Link
-                component="button"
-                variant="body2"
-                onClick={handleForgotPassword}
-                sx={{ mt: 1 }}
-              >
-                ¿Olvidaste tu contraseña?
-              </Link>
-            </Box>
-          </Box>
-        </Paper>
-      </Box>
-    </Container>
+    <SignInPage
+      signIn={handleSignIn}
+      error={error}
+      slots={{
+        title: Title,
+        subtitle: EmptySubtitle,
+        emailField: CustomEmailField,
+        passwordField: CustomPasswordField,
+        submitButton: CustomButton,
+        forgotPasswordLink: ForgotPasswordLink,
+        rememberMe: EmptyRememberMe,
+      }}
+      providers={providers}
+    />
   );
 }

@@ -71,8 +71,7 @@ export const DashboardLayoutNavigationLinks = (props) => {
         },
       ]}
       branding={{
-        logo: <img src="https://mui.com/static/logo.png" alt="MUI logo" />,
-        title: "My Dashboard",
+        title: "ISMEKALF",
         homeUrl: "/products",
       }}
       router={router}

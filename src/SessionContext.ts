@@ -1,11 +1,15 @@
-import * as React from 'react';
+import * as React from "react";
 
 export interface Session {
   user: {
+    id?: string;
     name?: string;
     email?: string;
     image?: string;
+    role?: string;
+    emailVerified?: boolean;
   };
+  token?: string;
 }
 
 interface SessionContextType {

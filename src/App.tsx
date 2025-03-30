@@ -1,11 +1,11 @@
 import * as React from 'react';
 import DashboardIcon from '@mui/icons-material/Dashboard';
 import ShoppingCartIcon from '@mui/icons-material/ShoppingCart';
-import { Outlet } from 'react-router';
+import { Outlet, useNavigate } from 'react-router';
 import { ReactRouterAppProvider } from '@toolpad/core/react-router';
 import type { Navigation, Authentication } from '@toolpad/core/AppProvider';
-import { firebaseSignOut, onAuthStateChanged } from './firebase/auth';
 import SessionContext, { type Session } from './SessionContext';
+import { signOut, getCurrentUser } from './services/auth';
 
 const NAVIGATION: Navigation = [
   {
@@ -24,17 +24,24 @@ const NAVIGATION: Navigation = [
 ];
 
 const BRANDING = {
-  title: "ismekalf-front",
-};
-
-const AUTHENTICATION: Authentication = {    
-  signIn: () => {},
-  signOut: firebaseSignOut,
+  title: "ismekalf",
 };
 
 export default function App() {
   const [session, setSession] = React.useState<Session | null>(null);
   const [loading, setLoading] = React.useState(true);
+  const navigate = useNavigate();
+
+  const handleSignOut = async () => {
+    await signOut();
+    setSession(null);
+    navigate('/sign-in');
+  };
+
+  const AUTHENTICATION: Authentication = {
+    signIn: () => { },
+    signOut: handleSignOut,
+  };
 
   const sessionContextValue = React.useMemo(
     () => ({
@@ -46,22 +53,33 @@ export default function App() {
   );
 
   React.useEffect(() => {
-    const unsubscribe = onAuthStateChanged((user) => {
-      if (user) {
-        setSession({
-          user: {
-            name: user.name || '',
-            email: user.email || '',
-            image: user.image || '',
-          },
-        });
-      } else {
+    const checkAuthStatus = async () => {
+      try {
+        const result = await getCurrentUser();
+        if (result.success && result.user) {
+          setSession({
+            user: {
+              id: result.user.id?.toString(),
+              name: result.user.name || '',
+              email: result.user.email || '',
+              image: result.user.image || '',
+              role: result.user.role || '',
+              emailVerified: !!result.user.email_verified_at,
+            },
+            token: result.token,
+          });
+        } else {
+          setSession(null);
+        }
+      } catch (error) {
+        console.error('Error al verificar sesión:', error);
         setSession(null);
+      } finally {
+        setLoading(false);
       }
-      setLoading(false);
-    });
+    };
 
-    return () => unsubscribe();
+    checkAuthStatus();
   }, []);
 
   return (
@@ -70,6 +88,11 @@ export default function App() {
       branding={BRANDING}
       session={session}
       authentication={AUTHENTICATION}
+      localeText={{
+        accountSignInLabel: 'Iniciar sesión',
+        accountSignOutLabel: 'Cerrar sesión',
+        accountPreviewTitle: 'Mi cuenta',
+      }}
     >
       <SessionContext.Provider value={sessionContextValue}>
         <Outlet />

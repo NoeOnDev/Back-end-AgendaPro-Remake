@@ -3,43 +3,41 @@
 namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
+use App\Http\Requests\RegisterUserRequest;
+use App\Http\Requests\UpdateUserRequest;
+use App\Http\Resources\UserResource;
 use App\Models\User;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Hash;
-use Illuminate\Support\Facades\Validator;
+use Illuminate\Support\Facades\Storage;
+use Illuminate\Support\Str;
 
 class AuthController extends Controller
 {
-    public function register(Request $request)
+    public function register(RegisterUserRequest $request)
     {
-        $validator = Validator::make($request->all(), [
-            'name' => 'required|string|max:255',
-            'email' => 'required|string|email|max:255|unique:users',
-            'password' => 'required|string|min:8|confirmed',
-        ]);
+        $validated = $request->validated();
 
-        if ($validator->fails()) {
-            return response()->json([
-                'success' => false,
-                'message' => 'Validation errors',
-                'data' => $validator->errors()
-            ], 422);
+        $avatarPath = null;
+        if ($request->hasFile('avatar')) {
+            $avatarPath = $this->uploadAvatar($request->file('avatar'));
         }
 
         $user = User::create([
-            'name' => $request->name,
-            'email' => $request->email,
-            'password' => Hash::make($request->password),
+            'name' => $validated['name'],
+            'email' => $validated['email'],
+            'password' => Hash::make($validated['password']),
+            'avatar' => $avatarPath,
         ]);
 
         $token = $user->createToken('auth_token')->plainTextToken;
 
         return response()->json([
             'success' => true,
-            'message' => 'User registered successfully',
+            'message' => 'Usuario registrado exitosamente',
             'data' => [
-                'user' => $user,
+                'user' => new UserResource($user),
                 'token' => $token,
                 'token_type' => 'Bearer'
             ]
@@ -48,23 +46,15 @@ class AuthController extends Controller
 
     public function login(Request $request)
     {
-        $validator = Validator::make($request->all(), [
+        $request->validate([
             'email' => 'required|email',
             'password' => 'required',
         ]);
 
-        if ($validator->fails()) {
-            return response()->json([
-                'success' => false,
-                'message' => 'Validation errors',
-                'data' => $validator->errors()
-            ], 422);
-        }
-
         if (!Auth::attempt($request->only('email', 'password'))) {
             return response()->json([
                 'success' => false,
-                'message' => 'Invalid credentials'
+                'message' => 'Credenciales inválidas'
             ], 401);
         }
 
@@ -73,9 +63,9 @@ class AuthController extends Controller
 
         return response()->json([
             'success' => true,
-            'message' => 'Login successful',
+            'message' => 'Login exitoso',
             'data' => [
-                'user' => $user,
+                'user' => new UserResource($user),
                 'token' => $token,
                 'token_type' => 'Bearer'
             ]
@@ -88,7 +78,7 @@ class AuthController extends Controller
 
         return response()->json([
             'success' => true,
-            'message' => 'Logout successful'
+            'message' => 'Logout exitoso'
         ]);
     }
 
@@ -96,7 +86,53 @@ class AuthController extends Controller
     {
         return response()->json([
             'success' => true,
-            'data' => $request->user()
+            'data' => new UserResource($request->user())
         ]);
+    }
+
+    public function update(UpdateUserRequest $request)
+    {
+        $user = $request->user();
+        $validated = $request->validated();
+
+        if ($request->input('remove_avatar', false)) {
+            if ($user->avatar) {
+                $this->deleteAvatar($user->avatar);
+                $validated['avatar'] = null;
+            }
+        }
+
+        if ($request->hasFile('avatar')) {
+            if ($user->avatar) {
+                $this->deleteAvatar($user->avatar);
+            }
+            $validated['avatar'] = $this->uploadAvatar($request->file('avatar'));
+        }
+
+        if (isset($validated['password']) && $validated['password']) {
+            $validated['password'] = Hash::make($validated['password']);
+        } else {
+            unset($validated['password']);
+        }
+
+        $user->update($validated);
+
+        return response()->json([
+            'success' => true,
+            'message' => 'Perfil actualizado exitosamente',
+            'data' => new UserResource($user)
+        ]);
+    }
+
+    private function uploadAvatar($file): string
+    {
+        $fileName = Str::uuid() . '.' . $file->getClientOriginalExtension();
+        $file->storeAs('public/avatars', $fileName);
+        return $fileName;
+    }
+
+    private function deleteAvatar(string $fileName): void
+    {
+        Storage::delete('public/avatars/' . $fileName);
     }
 }

@@ -4,6 +4,8 @@ namespace App\Models;
 
 // use Illuminate\Contracts\Auth\MustVerifyEmail;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
+use Illuminate\Database\Eloquent\Relations\BelongsToMany;
+use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Foundation\Auth\User as Authenticatable;
 use Illuminate\Notifications\Notifiable;
 use Laravel\Sanctum\HasApiTokens;
@@ -13,11 +15,6 @@ class User extends Authenticatable
     /** @use HasFactory<\Database\Factories\UserFactory> */
     use HasFactory, Notifiable, HasApiTokens;
 
-    /**
-     * The attributes that are mass assignable.
-     *
-     * @var list<string>
-     */
     protected $fillable = [
         'name',
         'email',
@@ -25,21 +22,11 @@ class User extends Authenticatable
         'avatar',
     ];
 
-    /**
-     * The attributes that should be hidden for serialization.
-     *
-     * @var list<string>
-     */
     protected $hidden = [
         'password',
         'remember_token',
     ];
 
-    /**
-     * Get the attributes that should be cast.
-     *
-     * @return array<string, string>
-     */
     protected function casts(): array
     {
         return [
@@ -48,14 +35,75 @@ class User extends Authenticatable
         ];
     }
 
-    /**
-     * Get the full URL for the user's avatar
-     */
-    public function getAvatarUrlAttribute(): ?string
+    // Relaciones para proyectos
+    public function ownedProjects(): HasMany
     {
-        if ($this->avatar) {
-            return asset('storage/avatars/' . $this->avatar);
-        }
-        return null;
+        return $this->hasMany(Project::class, 'owner_id');
+    }
+
+    public function projects(): BelongsToMany
+    {
+        return $this->belongsToMany(Project::class, 'project_users')
+            ->withPivot(['role_id', 'status', 'invited_by', 'invited_at', 'joined_at', 'expires_at'])
+            ->withTimestamps();
+    }
+
+    public function projectUsers(): HasMany
+    {
+        return $this->hasMany(ProjectUser::class);
+    }
+
+    public function sentInvitations(): HasMany
+    {
+        return $this->hasMany(ProjectInvitation::class, 'invited_by');
+    }
+
+    // Relaciones para contactos y citas
+    public function createdContacts(): HasMany
+    {
+        return $this->hasMany(Contact::class, 'created_by');
+    }
+
+    public function assignedAppointments(): HasMany
+    {
+        return $this->hasMany(Appointment::class, 'assigned_to');
+    }
+
+    public function createdAppointments(): HasMany
+    {
+        return $this->hasMany(Appointment::class, 'created_by');
+    }
+
+    public function activityLogs(): HasMany
+    {
+        return $this->hasMany(ActivityLog::class);
+    }
+
+    // Métodos utilitarios
+    public function getAllProjects()
+    {
+        return Project::where('owner_id', $this->id)
+            ->orWhereHas('users', function ($query) {
+                $query->where('user_id', $this->id)
+                    ->where('status', 'active');
+            })
+            ->get();
+    }
+
+    public function hasAccessToProject(Project $project): bool
+    {
+        return $project->owner_id === $this->id ||
+            $project->users()->where('user_id', $this->id)->exists();
+    }
+
+    public function getRoleInProject(Project $project): ?Role
+    {
+        return $project->getUserRole($this);
+    }
+
+    public function hasPermissionInProject(Project $project, string $resource, string $action): bool
+    {
+        $role = $this->getRoleInProject($project);
+        return $role?->hasPermission($resource, $action) ?? false;
     }
 }

@@ -15,6 +15,8 @@ return new class extends Migration
             $table->string('color', 7)->default('#3B82F6');
             $table->text('description')->nullable();
             $table->timestamps();
+
+            $table->unique(['project_id', 'name']);
         });
     }
 

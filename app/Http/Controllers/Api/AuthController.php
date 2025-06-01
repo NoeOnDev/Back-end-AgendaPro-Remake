@@ -7,8 +7,9 @@ use App\Http\Requests\RegisterUserRequest;
 use App\Http\Requests\UpdateUserRequest;
 use App\Http\Resources\UserResource;
 use App\Models\User;
+use App\Notifications\VerifyEmailNotification;
+use Illuminate\Auth\Events\Verified;
 use Illuminate\Http\Request;
-use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Str;
@@ -31,15 +32,18 @@ class AuthController extends Controller
             'avatar' => $avatarPath,
         ]);
 
+        $user->notify(new VerifyEmailNotification());
+
         $token = $user->createToken('auth_token')->plainTextToken;
 
         return response()->json([
             'success' => true,
-            'message' => 'Usuario registrado exitosamente',
+            'message' => 'Usuario registrado exitosamente. Por favor verifica tu email.',
             'data' => [
                 'user' => new UserResource($user),
                 'token' => $token,
-                'token_type' => 'Bearer'
+                'token_type' => 'Bearer',
+                'email_verification_required' => true
             ]
         ], 201);
     }
@@ -51,14 +55,31 @@ class AuthController extends Controller
             'password' => 'required',
         ]);
 
-        if (!Auth::attempt($request->only('email', 'password'))) {
+        $user = User::where('email', $request->email)->first();
+
+        if (!$user || !Hash::check($request->password, $user->password)) {
             return response()->json([
                 'success' => false,
-                'message' => 'Credenciales inválidas'
+                'message' => 'Credenciales inválidas',
+                'errors' => [
+                    'email' => ['Las credenciales proporcionadas no coinciden con nuestros registros.']
+                ]
             ], 401);
         }
 
-        $user = User::where('email', $request->email)->firstOrFail();
+        if (!$user->hasVerifiedEmail()) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Por favor verifica tu dirección de email antes de continuar.',
+                'email_verification_required' => true,
+                'data' => [
+                    'user' => new UserResource($user)
+                ]
+            ], 403);
+        }
+
+        $user->tokens()->delete();
+
         $token = $user->createToken('auth_token')->plainTextToken;
 
         return response()->json([
@@ -72,6 +93,53 @@ class AuthController extends Controller
         ]);
     }
 
+    public function verifyEmail(Request $request)
+    {
+        $user = User::findOrFail($request->route('id'));
+
+        if (!hash_equals((string) $request->route('hash'), sha1($user->getEmailForVerification()))) {
+            return response()->json([
+                'success' => false,
+                'message' => 'URL de verificación inválida'
+            ], 400);
+        }
+
+        if ($user->hasVerifiedEmail()) {
+            return response()->json([
+                'success' => true,
+                'message' => 'Email ya verificado anteriormente'
+            ]);
+        }
+
+        if ($user->markEmailAsVerified()) {
+            event(new Verified($user));
+        }
+
+        return response()->json([
+            'success' => true,
+            'message' => 'Email verificado exitosamente'
+        ]);
+    }
+
+    public function resendVerificationEmail(Request $request)
+    {
+        $user = $request->user();
+
+        if ($user->hasVerifiedEmail()) {
+            return response()->json([
+                'success' => false,
+                'message' => 'El email ya está verificado'
+            ], 400);
+        }
+
+        $user->notify(new VerifyEmailNotification());
+
+        return response()->json([
+            'success' => true,
+            'message' => 'Email de verificación enviado'
+        ]);
+    }
+
     public function logout(Request $request)
     {
         $request->user()->currentAccessToken()->delete();
@@ -79,6 +147,16 @@ class AuthController extends Controller
         return response()->json([
             'success' => true,
             'message' => 'Logout exitoso'
+        ]);
+    }
+
+    public function logoutAll(Request $request)
+    {
+        $request->user()->tokens()->delete();
+
+        return response()->json([
+            'success' => true,
+            'message' => 'Sesión cerrada en todos los dispositivos'
         ]);
     }
 
@@ -124,15 +202,21 @@ class AuthController extends Controller
         ]);
     }
 
+    private function deleteAvatar(string $fileName): void
+    {
+        if (Storage::exists('public/avatars/' . $fileName)) {
+            Storage::delete('public/avatars/' . $fileName);
+        }
+    }
+
     private function uploadAvatar($file): string
     {
+        if (!Storage::exists('public/avatars')) {
+            Storage::makeDirectory('public/avatars');
+        }
+
         $fileName = Str::uuid() . '.' . $file->getClientOriginalExtension();
         $file->storeAs('public/avatars', $fileName);
         return $fileName;
-    }
-
-    private function deleteAvatar(string $fileName): void
-    {
-        Storage::delete('public/avatars/' . $fileName);
     }
 }

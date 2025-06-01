@@ -91,7 +91,6 @@ class Appointment extends Model
         return $query->where('assigned_to', $user->id);
     }
 
-    // Métodos utilitarios
     public function getTotalPriceAttribute(): float
     {
         return $this->services->sum('pivot.price');

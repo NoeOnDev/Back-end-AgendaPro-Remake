@@ -5,10 +5,11 @@ namespace App\Models;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Notifications\Notifiable;
 
 class ProjectInvitation extends Model
 {
-    use HasFactory;
+    use HasFactory, Notifiable;
 
     protected $fillable = [
         'project_id',
@@ -57,5 +58,16 @@ class ProjectInvitation extends Model
     public function isPending(): bool
     {
         return $this->status === 'pending' && !$this->isExpired();
+    }
+
+    /**
+     * Definir cómo enrutar las notificaciones por email
+     *
+     * @param \Illuminate\Notifications\Notification $notification
+     * @return string
+     */
+    public function routeNotificationForMail($notification)
+    {
+        return $this->email;
     }
 }

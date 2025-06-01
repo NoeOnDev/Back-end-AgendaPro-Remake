@@ -31,8 +31,9 @@ class ProjectInvitationNotification extends Notification implements ShouldQueue
 
     public function toMail($notifiable)
     {
-        $acceptUrl = url("/api/v1/projects/{$this->project->id}/invitations/{$this->token}/accept");
-        $rejectUrl = url("/api/v1/projects/{$this->project->id}/invitations/{$this->token}/reject");
+        $frontendUrl = config('app.frontend_url', 'http://localhost:3000');
+        $acceptUrl = "{$frontendUrl}/invitations/{$this->token}/accept";
+        $rejectUrl = "{$frontendUrl}/invitations/{$this->token}/reject";
 
         return (new MailMessage)
             ->subject("Invitación al proyecto: {$this->project->name}")
@@ -40,7 +41,7 @@ class ProjectInvitationNotification extends Notification implements ShouldQueue
             ->line("{$this->invitedBy->name} te ha invitado a unirte al proyecto \"{$this->project->name}\".")
             ->line("Descripción del proyecto: {$this->project->description}")
             ->action('Aceptar Invitación', $acceptUrl)
-            ->line('Si no deseas unirte a este proyecto, puedes ignorar este email o rechazar la invitación.')
+            ->line('Si no deseas unirte a este proyecto, puedes ignorar este email.')
             ->line('Esta invitación expirará en 7 días.')
             ->salutation('Saludos, El equipo de Agenda Pro');
     }

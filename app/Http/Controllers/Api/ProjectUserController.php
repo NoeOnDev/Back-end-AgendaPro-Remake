@@ -5,7 +5,6 @@ namespace App\Http\Controllers\Api;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\InviteUserRequest;
 use App\Http\Requests\UpdateUserRoleRequest;
-use App\Http\Resources\ProjectUserResource;
 use App\Models\Project;
 use App\Models\ProjectInvitation;
 use App\Models\ProjectUser;

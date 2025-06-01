@@ -320,8 +320,8 @@ class AuthController extends Controller
      */
     private function deleteAvatar(string $fileName): void
     {
-        if (Storage::exists('public/avatars/' . $fileName)) {
-            Storage::delete('public/avatars/' . $fileName);
+        if (Storage::disk('public')->exists('avatars/' . $fileName)) {
+            Storage::disk('public')->delete('avatars/' . $fileName);
         }
     }
 
@@ -339,15 +339,15 @@ class AuthController extends Controller
     private function uploadAvatar($file): string
     {
         // Asegurar que existe el directorio de avatares
-        if (!Storage::exists('public/avatars')) {
-            Storage::makeDirectory('public/avatars');
+        if (!Storage::disk('public')->exists('avatars')) {
+            Storage::disk('public')->makeDirectory('avatars');
         }
 
         // Generar nombre único para evitar conflictos
         $fileName = Str::uuid() . '.' . $file->getClientOriginalExtension();
 
-        // Almacenar archivo
-        $file->storeAs('public/avatars', $fileName);
+        // Almacenar archivo en el disco público
+        $file->storeAs('avatars', $fileName, 'public');
 
         return $fileName;
     }
